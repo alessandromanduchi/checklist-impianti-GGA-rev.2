@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <title>NicheSafe - Verifica Apprestamenti Tecnologici</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NicheSafe">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- PDF generation library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Schermata Iniziale - Selezione Direzione -->
+    <div id="direction-screen" class="direction-screen">
+        <div class="container">
+            <div class="header">
+                <h1 class="logo">NicheSafe</h1>
+                <p class="tagline">Verifica Apprestamenti Tecnologici Galleria</p>
+            </div>
+            
+            <div class="card">
+                <h2 class="section-title">
+                    <div class="section-icon">🎯</div>
+                    Seleziona Direzione Verifica
+                </h2>
+                
+                <p style="margin-bottom: 2rem; color: var(--text-secondary);">
+                    Scegli da quale portale iniziare la verifica e la direzione di avanzamento.
+                </p>
+                
+                <div class="direction-options">
+                    <button class="direction-card" onclick="startVerification('vernio')">
+                        <div class="direction-icon">🔽</div>
+                        <h3>Vernio → San Benedetto</h3>
+                        <p class="direction-km">Da 37+259 a 55+742</p>
+                        <p class="direction-desc">Direzione Sud → Nord</p>
+                    </button>
+                    
+                    <button class="direction-card" onclick="startVerification('sambro')">
+                        <div class="direction-icon">🔼</div>
+                        <h3>San Benedetto → Vernio</h3>
+                        <p class="direction-km">Da 55+742 a 37+259</p>
+                        <p class="direction-desc">Direzione Nord → Sud</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Schermata Principale - Verifica (nascosta inizialmente) -->
+    <div id="main-screen" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <h1 class="logo">NicheSafe</h1>
+                <p class="tagline">Verifica Apprestamenti Tecnologici Galleria</p>
+                <div id="direction-info" class="direction-info"></div>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-badge status-online">
+                    <div class="status-dot"></div>
+                    <span>Sistema Attivo</span>
+                </div>
+                <div class="status-badge">
+                    <span id="niche-count">0 Nicchie</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">0 / 0 nicchie verificate</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="section-title">
+                    <div class="section-icon">✓</div>
+                    Checklist Apprestamenti
+                </h2>
+                <div class="checklist" id="checklist"></div>
+                
+                <div id="load-more-container" style="text-align: center; margin-top: 2rem; display: none;">
+                    <button class="btn btn-primary" onclick="loadMoreNiches()" id="load-more-btn">
+                        📋 Mostra altre 10 nicchie
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="section-title">
+                    <div class="section-icon">📊</div>
+                    Azioni
+                </h2>
+                <div class="actions">
+                    <button class="btn btn-secondary btn-block" onclick="clearData()">🗑️ Cancella Dati</button>
+                    <button class="btn btn-secondary btn-block" onclick="changeDirection()">🔄 Cambia Direzione</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating PDF Button (bottom left) -->
+    <button class="fab fab-pdf" onclick="generateReport()" style="display: none;" id="pdf-fab">
+        📄
+    </button>
+    
+    <!-- Floating Malfunction Button (bottom right) -->
+    <div class="fab-container" style="display: none;" id="fab-container">
+        <button class="fab" onclick="openMalfunctionModal()">⚠️</button>
+    </div>
+    
+    <!-- Malfunction Modal -->
+    <div class="modal" id="malfunction-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Segnala Malfunzionamento</h3>
+                <button class="modal-close" onclick="closeMalfunctionModal()">×</button>
+            </div>
+            
+            <form id="malfunction-form">
+                <div class="form-group">
+                    <label class="form-label">Tipo di Malfunzionamento *</label>
+                    <select class="form-select" id="malfunction-type" required onchange="updateMalfunctionForm()">
+                        <option value="">Seleziona...</option>
+                        <option value="camminamento">Camminamento</option>
+                        <option value="corrimano">Corrimano</option>
+                        <option value="illuminazione">Impianto di Illuminazione</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="illuminazione-detail" style="display: none;">
+                    <label class="form-label">Tipo di Guasto Illuminazione *</label>
+                    <select class="form-select" id="illuminazione-fault-type">
+                        <option value="">Seleziona...</option>
+                        <option value="fungo_blu">Fungo Blu</option>
+                        <option value="corpi_illuminanti">Corpi Illuminanti</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="corpi-count-group" style="display: none;">
+                    <label class="form-label">Numero Corpi Illuminanti Non Funzionanti *</label>
+                    <input type="number" class="form-input" id="corpi-count" min="1" placeholder="Es: 3">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Progressiva Chilometrica *</label>
+                    <select class="form-select" id="malfunction-km" required>
+                        <option value="">Seleziona nicchia...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Foto *</label>
+                    <input type="file" class="form-input" id="malfunction-photo" accept="image/*" capture="environment" required>
+                    <div id="malfunction-photo-preview" class="photo-preview"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Note Aggiuntive</label>
+                    <textarea class="form-input" id="malfunction-notes" rows="3" placeholder="Inserisci eventuali note..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">Salva Segnalazione</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Feedback Modal (prima di generare PDF) -->
+    <div class="modal" id="feedback-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Feedback Applicazione</h3>
+                <button class="modal-close" onclick="closeFeedbackModal()">×</button>
+            </div>
+            
+            <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                Prima di generare il report PDF, ci piacerebbe conoscere la tua esperienza con l'applicazione.
+            </p>
+            
+            <form id="feedback-form">
+                <div class="form-group">
+                    <label class="form-label">Hai riscontrato problemi durante l'utilizzo?</label>
+                    <textarea class="form-input" id="feedback-problems" rows="3" placeholder="Descrivi eventuali problemi riscontrati (opzionale)..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Hai suggerimenti per migliorare l'applicazione?</label>
+                    <textarea class="form-input" id="feedback-suggestions" rows="3" placeholder="Condividi i tuoi suggerimenti (opzionale)..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Valutazione complessiva</label>
+                    <div class="rating-group">
+                        <label class="rating-label" onclick="setRating(1)">
+                            <span id="star-1">⭐</span>
+                        </label>
+                        <label class="rating-label" onclick="setRating(2)">
+                            <span id="star-2">⭐</span>
+                        </label>
+                        <label class="rating-label" onclick="setRating(3)">
+                            <span id="star-3">⭐</span>
+                        </label>
+                        <label class="rating-label" onclick="setRating(4)">
+                            <span id="star-4">⭐</span>
+                        </label>
+                        <label class="rating-label" onclick="setRating(5)">
+                            <span id="star-5">⭐</span>
+                        </label>
+                    </div>
+                    <input type="hidden" id="feedback-rating" value="0">
+                </div>
+                
+                <div class="actions" style="margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="skipFeedbackAndGenerate()">
+                        Salta e Genera PDF
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Invia e Genera PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Load data and app script -->
+    <script src="niches-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
